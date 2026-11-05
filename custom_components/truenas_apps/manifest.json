@@ -1,6 +1,9 @@
 {
   "domain": "truenas_apps",
   "name": "TrueNAS Apps",
+  "categories": [
+    "computers_network.nas_servers"
+  ],
   "codeowners": [
     "@soullink9"
   ],
