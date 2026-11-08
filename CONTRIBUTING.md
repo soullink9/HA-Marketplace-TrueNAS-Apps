@@ -38,18 +38,26 @@ docstring.
 
 ## Checking a change
 
-You need Python 3.13 and [ruff](https://docs.astral.sh/ruff/) (`pip install ruff`).
+You need Python 3.13 or newer (Home Assistant 2026.9 itself runs on 3.14, which is what the workflows use) and
+[ruff](https://docs.astral.sh/ruff/) (`pip install ruff`).
 
 | Command | When |
 |---|---|
 | `ruff check custom_components tests` and `ruff format custom_components tests` | every change |
 | `python3 tests/test_integration.py` | every change (seconds) |
 | `python3 tests/test_integration.py 90` | before a release (90 simulated days) |
+| `python3 tests/test_release.py` | any change to `scripts/` or the release workflows |
+| `python3 scripts/build_package.py` | before a release: builds `dist/truenas_apps.zip` and checks it installs |
 
 The tests use a fake TrueNAS (`fake_truenas.py`) and small stand-ins for Home Assistant and aiohttp (`stubs/`), so
 they need no installs and no real server, and months of polling take seconds. They exercise the integration's own
 code paths (polling, failure handling, app actions, entity values, device removal), but can't prove it works with
-real Home Assistant. Try a change on a real instance too. CI also runs `hassfest`.
+real Home Assistant. Try a change on a real instance too.
+
+Gitea's runner runs `ruff`, 30 simulated days, the release tests and the zip build on every push
+(`.gitea/workflows/test.yml`). On GitHub the same checks run plus Home Assistant's `hassfest` and the Marketplace's
+own checks, which come from GitHub and can only run there. [tests/README.md](tests/README.md) lists what each test
+checks.
 
 Code style: `ruff` settles formatting and import order (see `pyproject.toml`). Every function and class has a
 docstring, and comments say why, not what.
@@ -114,12 +122,40 @@ chore: update the CI actions
 
 ## Releasing
 
-1. Change `version` in `custom_components/truenas_apps/manifest.json`.
-2. Add the release to `CHANGELOG.md`.
-3. Run the checks above.
-4. Publish it: push the tag (`git tag vX.Y.Z && git push origin vX.Y.Z`), or open **Actions → Release → Run
-   workflow** and enter the version. The [Release workflow](.github/workflows/release.yml) checks the manifest
-   and `CHANGELOG.md` are at that version, then publishes the GitHub release the Marketplace installs from.
+Gitea is the main copy of this repository. It push-mirrors to GitHub, which is the public copy: the Marketplace
+installs from GitHub's releases, so every link in the docs and release notes points there.
+
+1. Bump `version` in `custom_components/truenas_apps/manifest.json`. Versions go up together: there is only this
+   one.
+2. Add the release to the top of [CHANGELOG.md](CHANGELOG.md), under a heading `## X.Y.Z (date)` (move what's under
+   `## Unreleased` into it).
+3. Run the checks above, the 90-day run included.
+4. Commit and push to Gitea, then publish with Gitea's **Release** workflow (`.gitea/workflows/release.yml`),
+   either way:
+   - **Actions → Release → Run workflow**, and enter the version without the `v` (for example `1.2.1`). It
+     creates the tag `v1.2.1` on the commit it releases.
+   - or push a version tag: `git tag v1.2.1 && git push origin v1.2.1`.
+
+   The workflow checks the version matches the manifest and `CHANGELOG.md` (`scripts/release_notes.py`), runs every
+   check, builds `truenas_apps.zip` and checks it installs as `custom_components/truenas_apps/`
+   (`scripts/build_package.py`), and publishes the release on Gitea with the zip and notes: install steps, then that
+   version's changelog section (`scripts/publish_gitea_release.py`). A version with a suffix (`-beta`) is published
+   as a pre-release. If any check fails, nothing is published. Running it again for the same version updates the
+   release and replaces its zip.
+
+5. Gitea's push mirror then sends the commits and the new tag to GitHub, where the tag starts GitHub's own
+   **Release** workflow (`.github/workflows/release.yml`), which runs the same checks and publishes the same
+   release there. The Marketplace picks it up from GitHub. If GitHub is down, the mirror catches up later; the Gitea
+   release is already done.
+
+The Gitea workflows use no actions (`actions/checkout` and the like download from GitHub): each job runs in a plain
+image from Docker Hub (`python:3.14-bookworm`) and fetches the code from Gitea with git, so testing and releasing
+keep working when GitHub can't be reached. Only `ruff` comes from PyPI. When the runner's jobs can't reach Gitea at
+its public address (a runner on the same Docker network as Gitea, say), set an Actions variable `GITEA_INTERNAL_URL`
+to the address they can reach (`http://gitea-server:3000`); both workflows and the publish script use it.
+
+Keep every tag on Gitea: the push mirror makes GitHub's tags match Gitea's, so a tag missing from Gitea is deleted on
+GitHub, and the GitHub release on it turns into a draft.
 
 ## Reporting bugs
 
