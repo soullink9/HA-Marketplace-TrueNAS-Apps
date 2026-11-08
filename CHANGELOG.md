@@ -11,6 +11,8 @@
   publishing on Gitea. Every release's notes now start with how to install it.
 - The release's zip is now always `truenas_apps.zip` (it had the version in its name), so
   `.../releases/latest/download/truenas_apps.zip` always gets the newest. Each zip is checked before it's published.
+- The tests run on Python 3.14 (Home Assistant 2026.9's Python, which the workflows use): they stopped before the
+  first check there, on a function Python 3.14 deprecates.
 
 ## 1.2.0 (2026-11-04)
 

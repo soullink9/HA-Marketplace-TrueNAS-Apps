@@ -7,6 +7,7 @@ import asyncio
 import collections
 import gc
 import importlib
+import inspect
 import logging
 import os
 import sys
@@ -457,7 +458,10 @@ async def test_install_button():
 
 
 async def main():
-    tests = [(n, f) for n, f in globals().items() if n.startswith("test_") and asyncio.iscoroutinefunction(f)]
+    # inspect, not asyncio: asyncio.iscoroutinefunction is deprecated in Python 3.14, and the warning it raises is
+    # recorded in this module's globals (__warningregistry__) while they're being read. A copy of the globals keeps
+    # any such change from breaking the loop.
+    tests = [(n, f) for n, f in list(globals().items()) if n.startswith("test_") and inspect.iscoroutinefunction(f)]
     failed = []
     for name, fn in tests:
         started = time.time()
