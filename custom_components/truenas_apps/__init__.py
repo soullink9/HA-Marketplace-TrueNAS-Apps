@@ -5,8 +5,6 @@ File map: ``api.py`` talks to TrueNAS, ``coordinator.py`` polls it and runs acti
 ``update.py`` are the entity platforms. ``config_flow.py`` is the setup form.
 """
 
-from __future__ import annotations
-
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 
@@ -14,17 +12,16 @@ from .const import DOMAIN, PLATFORMS
 from .coordinator import TrueNASConfigEntry, TrueNASCoordinator
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: TrueNASConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: TrueNASConfigEntry) -> None:
     """Create the coordinator, do the first poll, then load the entity platforms."""
     entry.runtime_data = TrueNASCoordinator(hass, entry)
     await entry.runtime_data.async_config_entry_first_refresh()  # raises (and retries later) if TrueNAS is down
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: TrueNASConfigEntry) -> bool:
-    """Unload the platforms (the coordinator goes away with the entry)."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+async def async_unload_entry(hass: HomeAssistant, entry: TrueNASConfigEntry) -> None:
+    """Unload the platforms (the coordinator goes away with the entry). Raises if a platform won't unload."""
+    await hass.config_entries.async_unload_platforms_or_raise(entry, PLATFORMS)
 
 
 async def async_remove_config_entry_device(hass: HomeAssistant, entry: TrueNASConfigEntry, device: DeviceEntry) -> bool:

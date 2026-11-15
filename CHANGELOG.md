@@ -1,6 +1,19 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 (2026-11-15)
+
+Built for Home Assistant 2026.11 and the Marketplace. **Needs Home Assistant 2026.11 or newer**: older versions keep
+being offered 1.2.0, the last release that runs on them.
+
+- App updates now come straight from TrueNAS's own "update available" flag (Home Assistant's new `has_update`), so an
+  app shows an update exactly when TrueNAS says it has one, including when TrueNAS doesn't name the version. The
+  TrueNAS system update works the same way.
+- Set-up and unload follow Home Assistant 2026.11: an unload that fails now says why instead of failing silently.
+- The setup form uses Probatio, Home Assistant's own validation library, directly instead of the old voluptuous name.
+- "Settings updated" and "Re-authentication successful" now use Home Assistant's shared wording, translated into
+  every language Home Assistant has.
+- No backwards-compatibility code for older Home Assistant or Python versions remains: the code is Python 3.14 only.
+- The Marketplace installs it without a restart the first time; the docs say so.
 
 ### Repository
 

@@ -38,7 +38,7 @@ docstring.
 
 ## Checking a change
 
-You need Python 3.13 or newer (Home Assistant 2026.9 itself runs on 3.14, which is what the workflows use) and
+You need Python 3.14 (what Home Assistant 2026.11 runs on, and what the workflows use) and
 [ruff](https://docs.astral.sh/ruff/) (`pip install ruff`).
 
 | Command | When |
@@ -90,7 +90,7 @@ The tests use these names:
 
 ```
 tests/
-  stubs.py                stand-ins for Home Assistant and the libraries the integration uses
+  stubs/                  stand-ins for Home Assistant and the libraries the integration uses
   test_integration.py     the real integration against the stand-ins and a fake device or service
   test_<subject>.py       any other checks (test_engine.py, test_blueprint.py, test_live_proxy.py)
   test_<subject>_soak.py  a long simulation: it takes a length as an argument, and CI runs a short one

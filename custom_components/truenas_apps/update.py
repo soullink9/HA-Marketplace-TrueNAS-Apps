@@ -3,8 +3,6 @@
 Home Assistant lists these under Settings > Updates, so pending updates are easy to spot.
 """
 
-from __future__ import annotations
-
 from typing import Any
 
 from homeassistant.components.update import UpdateEntity, UpdateEntityFeature
@@ -49,13 +47,18 @@ class AppUpdate(AppEntity, UpdateEntity):
     def latest_version(self) -> str | None:
         """The newest version; equal to the installed one when there is no update.
 
-        Home Assistant shows "update available" whenever the two differ, so when TrueNAS
-        flags an update but names no version we still return a different placeholder.
+        When TrueNAS flags an update but names no version, a placeholder keeps the two different, since Home Assistant
+        only asks ``has_update`` when they differ.
         """
         app = self.app
         if not app.get("upgrade_available"):
             return app.get("version")
         return app.get("latest_version") or app.get("latest_app_version") or "update available"
+
+    @property
+    def has_update(self) -> bool:
+        """TrueNAS says whether the app has an update, so its answer wins over comparing version strings."""
+        return bool(self.app.get("upgrade_available"))
 
     @property
     def in_progress(self) -> bool:
@@ -98,6 +101,11 @@ class SystemUpdate(SystemEntity, UpdateEntity):
     def latest_version(self) -> str:
         """The newer version if there is one, otherwise the installed version."""
         return self._new.get("version") or self.installed_version
+
+    @property
+    def has_update(self) -> bool:
+        """TrueNAS names a new version only when there is one, so that's the answer (no version-string comparison)."""
+        return bool(self._new.get("version"))
 
     @property
     def release_url(self) -> str | None:

@@ -1,11 +1,12 @@
 # Installation
 
-**Needs:** Home Assistant 2026.9 or newer, and TrueNAS 25.10 (Goldeye) or newer. It was built and tested on 25.10.7.
+**Needs:** Home Assistant 2026.11 or newer, and TrueNAS 25.10 (Goldeye) or newer. It was built and tested on 25.10.7.
 
 ## From the Marketplace
 
-In Home Assistant 2026.11 and newer, open **Settings → Marketplace**, search for **TrueNAS Apps** and install it, then
-restart Home Assistant. Updates then show up under **Settings → Updates**.
+Open **Settings → Marketplace**, search for **TrueNAS Apps** and install it. A first install loads without a
+restart. Updates show up under **Settings → Updates**; installing one needs a restart, and Home Assistant offers it
+as a repair.
 
 If it isn't listed yet, add it from its link instead: this repository's address,
 `https://github.com/soullink9/HA-Marketplace-TrueNAS-Apps`. Adding from a link needs Home Assistant to be connected to GitHub.

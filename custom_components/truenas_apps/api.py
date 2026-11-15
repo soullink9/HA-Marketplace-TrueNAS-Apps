@@ -5,8 +5,6 @@ with the API key, ask what we need, and close it again. Nothing stays connected
 between polls, so a TrueNAS reboot or network drop can never leave us half-open.
 """
 
-from __future__ import annotations
-
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager

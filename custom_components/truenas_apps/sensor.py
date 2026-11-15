@@ -1,7 +1,5 @@
 """Sensors: the status of each app and how full each storage pool is."""
 
-from __future__ import annotations
-
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant

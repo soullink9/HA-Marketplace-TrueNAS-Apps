@@ -1,7 +1,5 @@
 """The coordinator: polls TrueNAS once a minute and runs app actions in the background."""
 
-from __future__ import annotations
-
 import asyncio
 from datetime import timedelta
 import logging

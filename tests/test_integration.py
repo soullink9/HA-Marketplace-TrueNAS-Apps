@@ -45,6 +45,7 @@ PROPERTIES = (
     "extra_state_attributes",
     "release_url",
     "in_progress",
+    "has_update",
 )
 
 
@@ -164,11 +165,15 @@ async def test_entities_and_values():
     upd = entity(ents, "AppUpdate", "plex")
     assert (upd.installed_version, upd.latest_version) == ("1.0.0", "2.0.0")
     assert entity(ents, "AppUpdate", "sonarr").latest_version == "1.0.0"
+    assert upd.has_update is True and entity(ents, "AppUpdate", "sonarr").has_update is False
     assert upd.entity_picture.endswith("plex.png")
     pool = [e for e in ents if type(e).__name__ == "PoolUsage"][0]
     assert pool.native_value == 40.0
     system = [e for e in ents if type(e).__name__ == "SystemUpdate"][0]
-    assert (system.installed_version, system.latest_version) == ("25.10.7", "25.10.8")
+    assert (system.installed_version, system.latest_version) == ("25.10.7", "25.10.8") and system.has_update is True
+    # set-up and unload finish with None (Home Assistant 2026.11); unload raises if a platform won't unload
+    hass = coord.hass
+    assert await integration.async_unload_entry(hass, coord.config_entry) is None
     assert system.extra_state_attributes == {
         "hostname": "thevault",
         "platform": "Generic",

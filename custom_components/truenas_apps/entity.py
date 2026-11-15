@@ -1,7 +1,5 @@
 """Base classes shared by the entity platforms."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 
 from homeassistant.core import callback

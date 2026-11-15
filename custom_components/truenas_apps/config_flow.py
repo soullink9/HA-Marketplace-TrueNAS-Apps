@@ -1,26 +1,25 @@
 """The setup form: first-time setup, reconfigure, and re-authentication share one form."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from aiohttp import ClientError
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_API_KEY, CONF_HOST, CONF_VERIFY_SSL
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig, TextSelectorType
-import voluptuous as vol
+import probatio as pb
 
 from .api import rpc
 from .const import DOMAIN
 
-SCHEMA = vol.Schema(
+# Probatio is Home Assistant's validation library (it replaced voluptuous in 2026.9), so it needs no requirement.
+SCHEMA = pb.Schema(
     {
         # Bare hostname or IP (optionally :port) only. No scheme, path, "?" or "user@",
         # so the websocket URL we build from it can't be bent to point somewhere else.
-        vol.Required(CONF_HOST): vol.All(str, vol.Strip, vol.Match(r"^[A-Za-z0-9.\-:\[\]]+$")),
-        vol.Required(CONF_API_KEY): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
+        pb.Required(CONF_HOST): pb.All(str, pb.Strip, pb.Match(r"^[A-Za-z0-9.\-:\[\]]+$")),
+        pb.Required(CONF_API_KEY): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
         # Off by default because TrueNAS ships with a self-signed certificate.
-        vol.Required(CONF_VERIFY_SSL, default=False): bool,
+        pb.Required(CONF_VERIFY_SSL, default=False): bool,
     }
 )
 
@@ -58,7 +57,7 @@ class TrueNASConfigFlow(ConfigFlow, domain=DOMAIN):
                 await rpc(self.hass, user_input, "app.query")  # needs a key allowed to read apps
             except PermissionError:
                 errors["base"] = "invalid_auth"
-            except (ClientError, TimeoutError, RuntimeError):
+            except ClientError, TimeoutError, RuntimeError:
                 errors["base"] = "cannot_connect"
             else:
                 if entry:

@@ -7,7 +7,7 @@ body:
     attributes:
       label: Versions
       description: Home Assistant (Settings → About), TrueNAS (Dashboard) and this integration (the version is on the TrueNAS Apps integration page).
-      placeholder: Home Assistant 2026.9.4, TrueNAS 25.10.7, TrueNAS Apps 1.0.0
+      placeholder: Home Assistant 2026.11.1, TrueNAS 25.10.7, TrueNAS Apps 1.3.0
     validations:
       required: true
   - type: textarea

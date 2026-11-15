@@ -12,8 +12,8 @@ class _CE:
     async def async_forward_entry_setups(self, entry, platforms):
         pass
 
-    async def async_unload_platforms(self, entry, platforms):
-        return True
+    async def async_unload_platforms_or_raise(self, entry, platforms):
+        pass
 
 
 class HomeAssistant:

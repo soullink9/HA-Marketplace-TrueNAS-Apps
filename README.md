@@ -27,9 +27,9 @@ Your TrueNAS Docker apps in Home Assistant: see which are running, start, stop a
 
 ## Install
 
-**Needs:** Home Assistant 2026.9 or newer, and TrueNAS 25.10 (Goldeye) or newer, which has the Docker-based Apps. It was built and tested on 25.10.7.
+**Needs:** Home Assistant 2026.11 or newer, and TrueNAS 25.10 (Goldeye) or newer, which has the Docker-based Apps. It was built and tested on 25.10.7.
 
-1. **Download.** Install **TrueNAS Apps** from the Marketplace (**Settings → Marketplace**, Home Assistant 2026.11 and newer), or copy the [`custom_components/truenas_apps`](custom_components/truenas_apps) folder into `/config/custom_components/` and restart Home Assistant.
+1. **Download.** Install **TrueNAS Apps** from the Marketplace (**Settings → Marketplace**; no restart needed for a first install), or copy the [`custom_components/truenas_apps`](custom_components/truenas_apps) folder into `/config/custom_components/` and restart Home Assistant.
 2. **Make an API key** in TrueNAS (user menu in the top right → **API Keys** → **Add**). Copy it when it's shown; TrueNAS won't show it again.
 3. **Add the integration.** Press the button above, or go to **Settings → Devices & services → Add integration → TrueNAS Apps**. Enter the TrueNAS hostname or IP, the API key, and whether to verify the SSL certificate (leave it off if TrueNAS uses its default self-signed certificate).
 
