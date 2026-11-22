@@ -8,3 +8,7 @@ class ClientConnectorError(ClientError):
 
 class WSServerHandshakeError(ClientError):
     pass
+
+
+class ClientConnectorCertificateError(ClientConnectorError):
+    pass

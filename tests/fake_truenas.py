@@ -62,25 +62,29 @@ class Server:
         self.apps = {n: new_app(n) for n in ("plex", "sonarr", "radarr")}
         self.pools = {"tank": {"name": "tank", "size": 10**13, "allocated": 4 * 10**12, "free": 6 * 10**12}}
         self.new_version = None  # set to e.g. "25.10.8" to simulate a pending system update
-        self.deny = set()  # methods that answer "Not authorized"
+        self.deny = set()  # methods that answer "Not authorized" (EACCES)
+        self.broken = set()  # methods that always fail with a server-side error
         self.drift = None  # function(method, result) -> result, to change the API's shape
         # probabilities (0..1) of misbehaving on any given call
         self.p_conn_fail = self.p_close = self.p_error = self.p_notify = self.p_badjson = self.p_job_fail = 0.0
+        self.self_signed = False  # a verified connection fails with a certificate error
         self.hang_connect = False  # connections never complete
         self.hang_forever = False  # ...and never even time out by themselves
-        self.job_mode = "ok"  # ok | fail | stuck | pruned | fail_if_stopped
+        self.job_mode = "ok"  # ok | fail | stuck | pruned | fail_if_stopped | wrong_job
         self.job_secs = 20
         self.jobs = {}
         self.next_job = 1
         self.counts = collections.Counter()
+        self.last_url = None
         self.open = 0
         self.max_open = 0
 
     # --- aiohttp-like session ---
-    def ws_connect(self, url, **kwargs):
+    def ws_connect(self, url, verify_ssl=False, **kwargs):
         """What ``session.ws_connect`` does."""
         assert url.startswith("wss://"), url
-        return _Connection(self)
+        self.last_url = url
+        return _Connection(self, verify_ssl)
 
     # --- jobs ---
     def _job_state(self, job):
@@ -114,8 +118,14 @@ class Server:
         def ok(result):
             return {"jsonrpc": "2.0", "id": msg_id, "result": result}
 
-        def err(text):
-            return {"jsonrpc": "2.0", "id": msg_id, "error": {"code": -1, "message": text}}
+        def err(text, errname="EFAULT", errno=14):
+            # TrueNAS's shape: a generic message, with the real reason and error name in "data".
+            data = {"error": errno, "errname": errname, "reason": text, "trace": None, "extra": None}
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "error": {"code": -32001, "message": "Method call error", "data": data},
+            }
 
         if method == "auth.login_with_api_key":
             ws.authed = bool(params) and params[0] == self.key
@@ -124,7 +134,9 @@ class Server:
         if not ws.authed:
             return err("Not authenticated")
         if method in self.deny:
-            return err("Not authorized")
+            return err("Not authorized", "EACCES", 13)
+        if method in self.broken:
+            return err("Internal error")
         if self.rng.random() < self.p_error:
             return err("Internal error")
         self.settle()
@@ -161,6 +173,8 @@ class Server:
             self.counts["get_jobs"] += 1
             if job is None or (self.job_mode == "pruned" and self._job_state(job) != "RUNNING"):
                 result = []
+            elif self.job_mode == "wrong_job":  # some other job's record
+                result = [{"id": job_id + 1000, "state": "SUCCESS", "error": None}]
             else:
                 state = self._job_state(job)
                 result = [{"id": job_id, "state": state, "error": "boom" if job["fail"] else None}]
@@ -174,8 +188,8 @@ class Server:
 class _Connection:
     """Async context manager returned by ``ws_connect``."""
 
-    def __init__(self, server):
-        self.server = server
+    def __init__(self, server, verify_ssl):
+        self.server, self.verify_ssl = server, verify_ssl
 
     async def __aenter__(self):
         await real_sleep(0)
@@ -183,6 +197,8 @@ class _Connection:
         s.counts["connect"] += 1
         if not s.up or s.rng.random() < s.p_conn_fail:
             raise aiohttp.ClientConnectorError("down")
+        if s.self_signed and self.verify_ssl:
+            raise aiohttp.ClientConnectorCertificateError("self-signed certificate")
         if s.hang_connect:
             if s.hang_forever:
                 await asyncio.Event().wait()
@@ -236,6 +252,7 @@ class Session:
 
     def __init__(self, server):
         self.server = server
+        self.verify_ssl = False  # set by the async_get_clientsession stand-in
 
     def ws_connect(self, url, **kwargs):
-        return self.server.ws_connect(url, **kwargs)
+        return self.server.ws_connect(url, verify_ssl=self.verify_ssl, **kwargs)

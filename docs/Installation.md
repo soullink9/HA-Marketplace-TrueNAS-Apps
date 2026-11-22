@@ -43,15 +43,19 @@ worked.
 
 - **Host**: the hostname or IP of TrueNAS, with `:port` if you changed the port. No `https://` and no path.
 - **API key**: the key from step 2.
-- **Verify SSL certificate**: leave **off** if TrueNAS uses its default self-signed certificate. Turn it on if the
-  certificate is trusted by Home Assistant (for example one from Let's Encrypt, reached by the name on the certificate).
+- **Verify SSL certificate**: **on** by default, which works when TrueNAS has a certificate Home Assistant trusts (for
+  example one from Let's Encrypt, reached by the name on the certificate). TrueNAS's own default certificate is
+  self-signed, so setup then says the certificate couldn't be verified: install a trusted certificate, or turn this off
+  to connect anyway. See [Privacy and Security](Privacy-and-Security.md#verify-ssl-certificate) for what turning it off
+  means.
 
 Home Assistant tests the connection before saving, and creates one device per app plus a **TrueNAS** device.
 
 ## Changing settings later
 
 On the integration page (**Settings → Devices & services → TrueNAS Apps**), open ⋮ → **Reconfigure** to change the
-host, the API key or the SSL setting without losing your entities.
+host, the API key or the SSL setting without losing your entities. The form never shows the saved API key: leave
+it blank to keep it.
 
 If TrueNAS rejects the stored key (you deleted or regenerated it), Home Assistant shows a **Repair** / "Reconfiguration
 required" notice. Open it and enter the new key. Polling stops until you do, so TrueNAS isn't hammered with bad logins.

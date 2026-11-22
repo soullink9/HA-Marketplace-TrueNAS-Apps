@@ -5,7 +5,9 @@ class Schema:
 
 class Required(str):
     def __new__(cls, k, default=None):
-        return str.__new__(cls, k)
+        key = str.__new__(cls, k)
+        key.default = default
+        return key
 
 
 def Match(p):
@@ -17,3 +19,7 @@ def All(*a):
 
 
 Strip = object()
+
+
+class Optional(Required):
+    pass

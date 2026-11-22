@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import connect, optional
+from .api import clean_text, connect, optional
 from .const import DOMAIN, JOB_CHECK_INTERVAL, JOB_TIMEOUT, POLL_INTERVAL, POLL_TIMEOUT
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,17 +81,27 @@ class TrueNASCoordinator(DataUpdateCoordinator[dict]):
                 for method in methods:
                     # app.upgrade takes an options dict ({} = latest version, default settings).
                     job = await call(f"app.{method}", [app, {}] if method == "upgrade" else [app])
+                    if not isinstance(job, int) or isinstance(job, bool):
+                        raise RuntimeError(f"TrueNAS returned {job!r} instead of a job id")
                     await self.async_refresh()  # show the in-progress state
                     while True:
-                        # A job record that was already pruned counts as finished.
-                        (j,) = await call("core.get_jobs", [[["id", "=", job]]]) or [{"state": "SUCCESS"}]
-                        if j["state"] not in ("WAITING", "RUNNING"):
+                        records = await call("core.get_jobs", [[["id", "=", job]]])
+                        if not records:  # a job record that was already pruned counts as finished
+                            state, job_error = "SUCCESS", None
+                            break
+                        # Only the record of the job we started counts, never some other job's.
+                        mine = [j for j in records if isinstance(j, dict) and j.get("id") == job]
+                        if len(mine) != 1:
+                            raise RuntimeError(f"TrueNAS didn't return job {job} when asked for it")
+                        state, job_error = mine[0].get("state"), mine[0].get("error")
+                        if state not in ("WAITING", "RUNNING"):
                             break
                         await asyncio.sleep(JOB_CHECK_INTERVAL)
-                    if j["state"] != "SUCCESS":
-                        raise RuntimeError(f"{j['state']} {j.get('error')}")
+                    if state != "SUCCESS":
+                        raise RuntimeError(f"{state} {job_error}")
         except (ClientError, TimeoutError, RuntimeError, PermissionError) as err:
-            error = f"app.{'+'.join(methods)} on {app} failed: {err or type(err).__name__}"
+            # TrueNAS writes the error text (and the app name), so strip control characters and cap its length.
+            error = clean_text(f"app.{'+'.join(methods)} on {app} failed: {err or type(err).__name__}")
             _LOGGER.error(error)
         finally:
             self.busy.discard(app)  # always release the app, whatever happened

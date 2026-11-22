@@ -6,9 +6,22 @@ Start with the log: **Settings → System → Logs**, search for `truenas_apps`.
 
 - Check the host. Use just the name or IP (`truenas.local`, `192.168.1.10`), with `:port` if needed. No `https://`.
 - Home Assistant connects with `wss://` (secure websocket), so TrueNAS's HTTPS must be reachable from Home Assistant.
-- If you turned **Verify SSL certificate** on and TrueNAS uses a self-signed certificate, the connection is refused.
-  Turn it off, or install a certificate Home Assistant trusts.
 - The API key must be allowed to read apps (setup tests this).
+
+## Setup says "TrueNAS's certificate couldn't be verified"
+
+**Verify SSL certificate** is on (the default) and Home Assistant doesn't trust the certificate TrueNAS presented.
+Out of the box TrueNAS uses a self-signed certificate, which always fails this check. Either:
+
+- install a certificate Home Assistant trusts on TrueNAS (for example from Let's Encrypt, in TrueNAS under
+  **Credentials → Certificates**) and enter the name on that certificate as the host, or
+- turn **Verify SSL certificate** off to connect anyway. The connection stays encrypted, but Home Assistant can't
+  tell whether it's really talking to your TrueNAS; see [Privacy and Security](Privacy-and-Security.md#verify-ssl-certificate).
+
+## Setup says the host is invalid
+
+Enter only a hostname or IP address, with `:port` (1–65535) if TrueNAS isn't on 443: `truenas.local`,
+`192.168.1.10:8443`, `fd00::10` or `[fd00::10]:8443`. No `https://`, path, `user@` or IPv6 zone (`%eth0`).
 
 ## Setup says "Invalid API key"
 
@@ -44,6 +57,10 @@ TrueNAS flagged an update without saying which version. The Install button still
 
 The API key isn't allowed to read update status or system information. Those parts are optional; use a key with
 more rights if you want them.
+
+If the key is allowed, check the log: when TrueNAS fails one of these for any other reason, the integration logs a
+warning naming the call (`update.status`, `webui.main.dashboard.sys_info` or `truenas.is_ix_hardware`) and TrueNAS's
+error, once, and logs again when it works.
 
 ## Still stuck
 

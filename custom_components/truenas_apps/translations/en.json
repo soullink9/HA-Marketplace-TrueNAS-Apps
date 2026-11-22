@@ -7,6 +7,11 @@
           "host": "Host (hostname or IP)",
           "api_key": "API key",
           "verify_ssl": "Verify SSL certificate"
+        },
+        "data_description": {
+          "host": "Name or IP address of your TrueNAS, optionally with a port, e.g. truenas.local or 192.168.1.10:8443. No https:// or path.",
+          "api_key": "An API key from TrueNAS (user menu at the top right → API Keys).",
+          "verify_ssl": "On by default. TrueNAS ships with a self-signed certificate that Home Assistant can't verify: install a trusted certificate on TrueNAS, or turn this off to connect anyway (still encrypted, but Home Assistant can't confirm it's really your TrueNAS)."
         }
       },
       "reconfigure": {
@@ -15,6 +20,11 @@
           "host": "Host (hostname or IP)",
           "api_key": "API key",
           "verify_ssl": "Verify SSL certificate"
+        },
+        "data_description": {
+          "host": "Name or IP address of your TrueNAS, optionally with a port, e.g. truenas.local or 192.168.1.10:8443. No https:// or path.",
+          "api_key": "Leave blank to keep the current key.",
+          "verify_ssl": "On by default. TrueNAS ships with a self-signed certificate that Home Assistant can't verify: install a trusted certificate on TrueNAS, or turn this off to connect anyway (still encrypted, but Home Assistant can't confirm it's really your TrueNAS)."
         }
       },
       "reauth_confirm": {
@@ -23,12 +33,19 @@
           "host": "Host (hostname or IP)",
           "api_key": "API key",
           "verify_ssl": "Verify SSL certificate"
+        },
+        "data_description": {
+          "host": "Name or IP address of your TrueNAS, optionally with a port, e.g. truenas.local or 192.168.1.10:8443. No https:// or path.",
+          "api_key": "An API key from TrueNAS (user menu at the top right → API Keys).",
+          "verify_ssl": "On by default. TrueNAS ships with a self-signed certificate that Home Assistant can't verify: install a trusted certificate on TrueNAS, or turn this off to connect anyway (still encrypted, but Home Assistant can't confirm it's really your TrueNAS)."
         }
       }
     },
     "error": {
       "cannot_connect": "Cannot connect to TrueNAS",
-      "invalid_auth": "Invalid API key"
+      "invalid_auth": "Invalid API key",
+      "invalid_host": "Enter only a hostname or IP address, optionally with :port (1–65535), with no https:// or path",
+      "cert_failed": "TrueNAS's certificate couldn't be verified. TrueNAS uses a self-signed certificate unless you installed your own: install a certificate Home Assistant trusts (and use the name on it as the host), or turn off \"Verify SSL certificate\" to connect anyway. With it off, the connection is still encrypted, but a device on your network could pose as TrueNAS and capture the API key."
     },
     "abort": {
       "already_configured": "This TrueNAS is already configured"

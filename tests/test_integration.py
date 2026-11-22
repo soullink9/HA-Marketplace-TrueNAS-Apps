@@ -32,7 +32,8 @@ PKG = "custom_components.truenas_apps"
 integration = importlib.import_module(PKG)
 coordinator_mod = importlib.import_module(f"{PKG}.coordinator")
 platforms = [importlib.import_module(f"{PKG}.{n}") for n in ("sensor", "switch", "button", "update")]
-importlib.import_module(f"{PKG}.config_flow")  # must at least import
+config_flow = importlib.import_module(f"{PKG}.config_flow")
+api = importlib.import_module(f"{PKG}.api")
 
 DAYS = int(sys.argv[1]) if len(sys.argv) > 1 else 30
 POLLS_PER_DAY = 1440  # one poll a minute
@@ -462,16 +463,177 @@ async def test_install_button():
             assert hass.notifications, "an install failed silently"
 
 
+async def test_optional_only_hides_permission_errors():
+    """A refused optional method stays quiet; any other error is logged as a warning once, not passed off as one."""
+    srv = reset(13)
+    srv.broken = {"update.status"}
+    _, _, coord, ents = await setup(srv)
+    api._failing.clear()
+    logger = logging.getLogger(api.__name__)
+    records = []
+    handler = logging.Handler()
+    handler.emit = records.append
+    logging.disable(logging.NOTSET)
+    logger.addHandler(handler)
+    try:
+        await poll(coord, ents, collections.Counter(), 3)
+        warnings = [r for r in records if r.levelno == logging.WARNING]
+        assert len(warnings) == 1 and "update.status" in warnings[0].getMessage(), [r.getMessage() for r in records]
+        assert coord.last_update_success and entity(ents, "AppStatus", "plex").available
+        system = [e for e in ents if type(e).__name__ == "SystemUpdate"][0]
+        assert not system.available
+        srv.broken = set()
+        await poll(coord, ents, collections.Counter(), 1)
+        assert system.available and "update.status" not in api._failing
+        records.clear()
+        srv.deny = {"update.status"}
+        await poll(coord, ents, collections.Counter(), 3)
+        assert not [r for r in records if r.levelno >= logging.WARNING], "a permission refusal was logged"
+    finally:
+        logger.removeHandler(handler)
+        logging.disable(logging.CRITICAL)
+
+
+async def test_job_record_must_match():
+    """A core.get_jobs answer about some other job is an error, never taken as our job finishing."""
+    srv = reset(14)
+    srv.job_mode = "wrong_job"
+    hass, entry, coord, ents = await setup(srv)
+    coord.app_action("plex", "stop")
+    await asyncio.gather(*entry.bg, return_exceptions=True)
+    assert not entry.bg_errors and coord.busy == set()
+    assert "didn't return job" in " ".join(hass.notifications.values()), hass.notifications
+
+
+async def test_notification_text_is_cleaned():
+    """Control characters in TrueNAS's error text don't reach the notification, and long text is capped."""
+    srv = reset(15)
+    srv.job_mode = "fail"
+    hass, entry, coord, ents = await setup(srv)
+    srv.handle_orig = srv.handle
+
+    def handle(ws, msg):
+        reply = srv.handle_orig(ws, msg)
+        if msg["method"] == "core.get_jobs" and reply.get("result"):
+            reply["result"][0]["error"] = "bad\x1b[31m\r\nthing\u202e" + "x" * 2000
+        return reply
+
+    srv.handle = handle
+    coord.app_action("plex", "start")
+    await asyncio.gather(*entry.bg, return_exceptions=True)
+    (text,) = hass.notifications.values()
+    assert text.isprintable() and "bad [31m thing" in text and len(text) <= 500, text
+    assert api.clean_text("a\tb\n\x00c") == "a b c"
+
+
+def test_host_validation():
+    """Only a hostname or IP with an optional valid port gets through, in the form the URL needs."""
+    good = {
+        "truenas": "truenas",
+        " nas.local ": "nas.local",
+        "nas.example.com:8443": "nas.example.com:8443",
+        "192.168.1.10": "192.168.1.10",
+        "192.168.1.10:443": "192.168.1.10:443",
+        "fd00::10": "[fd00::10]",
+        "[fd00::10]": "[fd00::10]",
+        "[fd00::10]:8443": "[fd00::10]:8443",
+        "my-nas-01.lan": "my-nas-01.lan",
+    }
+    for value, want in good.items():
+        assert config_flow.valid_host(value) == want, (value, config_flow.valid_host(value))
+    bad = [
+        "",
+        "...",
+        "nas..local",
+        ".nas",
+        "nas.",
+        "-nas",
+        "nas-",
+        "na_s",
+        "a" * 64,
+        ("a." * 127) + "a",
+        ":0",
+        ":443",
+        "nas:",
+        "nas:0",
+        "nas:99999",
+        "nas:+80",
+        "nas:٣",
+        "nas:80:80",
+        "[]",
+        "[nas]",
+        "[fd00::10",
+        "[fd00::10]x",
+        "[fd00::10]:",
+        "fe80::1%eth0",
+        "[fe80::1%eth0]",
+        "999.1.1.1",
+        "1.2.3",
+        "https://nas",
+        "nas/api",
+        "user@nas",
+        "nas?x",
+        "nas#x",
+        "nas local",
+        "nas\nx",
+        "::1::2",
+    ]
+    for value in bad:
+        assert config_flow.valid_host(value) is None, (value, config_flow.valid_host(value))
+
+
+async def test_config_flow():
+    """Verification is on by default, a certificate failure says how to opt out, and the key is never pre-filled."""
+    srv = reset(16)
+    srv.self_signed = True
+    hass = HomeAssistant()
+    hass.session = Session(srv)
+    flow = config_flow.TrueNASConfigFlow()
+    flow.hass = hass
+    for schema in (config_flow.SCHEMA, config_flow.RECONFIGURE_SCHEMA):
+        defaults = {str(k): k.default for k in schema.schema}
+        assert defaults["verify_ssl"] is True, "certificate verification must be on by default"
+    assert type(next(k for k in config_flow.RECONFIGURE_SCHEMA.schema if k == "api_key")).__name__ == "Optional"
+    form = await flow.async_step_user(None)
+    assert form["type"] == "form" and form["suggested"] is None
+
+    # verification on against a self-signed TrueNAS: a certificate error, not "cannot connect"
+    typed = {"host": "nas", "api_key": srv.key, "verify_ssl": True}
+    form = await flow.async_step_user(typed)
+    assert form["errors"] == {"base": "cert_failed"}, form
+    assert "api_key" not in form["suggested"], "the typed key was sent back to the form"
+    # bad host: refused before any connection
+    before = srv.counts["connect"]
+    form = await flow.async_step_user(dict(typed, host="nas/evil"))
+    assert form["errors"] == {"host": "invalid_host"} and srv.counts["connect"] == before
+    # opting out works, and the host is stored normalised
+    done = await flow.async_step_user({"host": " fd00::10 ", "api_key": srv.key, "verify_ssl": False})
+    assert done["type"] == "create_entry" and done["data"]["host"] == "[fd00::10]", done
+    assert srv.last_url == "wss://[fd00::10]/api/current"
+
+    # reconfigure: the saved key isn't pre-filled, and a blank key keeps it
+    entry = ConfigEntry(data=done["data"])
+    flow.entry = entry
+    form = await flow.async_step_reconfigure(None)
+    assert form["suggested"] == {"host": "[fd00::10]", "verify_ssl": False}, form
+    result = await flow.async_step_reconfigure({"host": "nas.local", "verify_ssl": False})
+    assert result["type"] == "abort" and entry.data == {"host": "nas.local", "api_key": srv.key, "verify_ssl": False}
+    # reauth: a wrong key is refused and not echoed back
+    form = await flow.async_step_reauth_confirm({"host": "nas.local", "api_key": "WRONG", "verify_ssl": False})
+    assert form["errors"] == {"base": "invalid_auth"} and "api_key" not in form["suggested"]
+
+
 async def main():
     # inspect, not asyncio: asyncio.iscoroutinefunction is deprecated in Python 3.14, and the warning it raises is
     # recorded in this module's globals (__warningregistry__) while they're being read. A copy of the globals keeps
     # any such change from breaking the loop.
-    tests = [(n, f) for n, f in list(globals().items()) if n.startswith("test_") and inspect.iscoroutinefunction(f)]
+    tests = [(n, f) for n, f in list(globals().items()) if n.startswith("test_") and inspect.isfunction(f)]
     failed = []
     for name, fn in tests:
         started = time.time()
         try:
-            await fn()
+            if inspect.iscoroutine(result := fn()):
+                await result
             print(f"PASS {name} ({time.time() - started:.1f}s)")
         except AssertionError as ex:
             failed.append(name)

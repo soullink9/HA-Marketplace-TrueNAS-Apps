@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.4.0 (2026-11-22)
+
+Security hardening, from a security review.
+
+- **Verify SSL certificate is now on by default** for new setups. TrueNAS's default certificate is self-signed, so
+  setup now says so plainly ("TrueNAS's certificate couldn't be verified") and explains the two ways forward: install a
+  trusted certificate, or turn verification off deliberately. With it off, Home Assistant logs a warning each time the
+  integration starts, since a device on the network could pose as TrueNAS and capture the API key. Existing entries keep
+  their setting; turn it on with Reconfigure once TrueNAS has a trusted certificate.
+- The Reconfigure form no longer pre-fills the saved API key (it was sent back to the browser). Leave the field blank
+  to keep the saved key. Re-authentication never shows the old or mistyped key either.
+- The host field is checked properly: a valid hostname, IPv4 address or IPv6 address (bare or in brackets) and an
+  optional port from 1 to 65535. Empty labels, bad ports, stray brackets and IPv6 zones are refused with a clear
+  message, and a bare IPv6 address is stored in brackets so the connection works.
+- The optional parts (system update, system information) now only go quiet when TrueNAS refuses them for lack of
+  permission. Any other error there is logged as a warning naming the call, once, instead of looking like a
+  restricted API key. Error messages from TrueNAS now show its actual reason instead of "Method call error".
+- When an app action waits for its TrueNAS job, only the record of that exact job counts: an answer about another job
+  is reported as an error instead of being taken as done.
+- Error text from TrueNAS is stripped of control characters and capped at 500 characters before it's shown in a
+  notification.
+
+### Repository
+
+- The Marketplace (HACS) check and hassfest actions are pinned to a commit instead of following a branch.
+
 ## 1.3.0 (2026-11-15)
 
 Built for Home Assistant 2026.11 and the Marketplace. **Needs Home Assistant 2026.11 or newer**: older versions keep

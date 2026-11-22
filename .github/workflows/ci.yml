@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: home-assistant/actions/hassfest@master
+      - uses: home-assistant/actions/hassfest@07f46fd2e19967768b5fd3000f91f857452b767c # master as of 2026-11-22
 
   tests:
     name: Tests (fake TrueNAS, 30 simulated days)

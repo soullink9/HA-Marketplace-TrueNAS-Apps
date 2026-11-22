@@ -5,15 +5,27 @@ File map: ``api.py`` talks to TrueNAS, ``coordinator.py`` polls it and runs acti
 ``update.py`` are the entity platforms. ``config_flow.py`` is the setup form.
 """
 
+import logging
+
+from homeassistant.const import CONF_HOST, CONF_VERIFY_SSL
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 
 from .const import DOMAIN, PLATFORMS
 from .coordinator import TrueNASConfigEntry, TrueNASCoordinator
 
+_LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: TrueNASConfigEntry) -> None:
     """Create the coordinator, do the first poll, then load the entity platforms."""
+    if not entry.data[CONF_VERIFY_SSL]:
+        _LOGGER.warning(
+            "SSL certificate verification is off for TrueNAS %s: the connection is encrypted, but a device on the "
+            "network could pose as TrueNAS and capture the API key. Install a trusted certificate on TrueNAS and turn "
+            "verification on (Reconfigure) to remove this warning",
+            entry.data[CONF_HOST],
+        )
     entry.runtime_data = TrueNASCoordinator(hass, entry)
     await entry.runtime_data.async_config_entry_first_refresh()  # raises (and retries later) if TrueNAS is down
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
