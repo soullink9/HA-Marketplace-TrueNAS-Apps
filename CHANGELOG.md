@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.1 (2026-11-25)
+
+Dependency update. Nothing changes in the integration itself: it still needs no Python packages from PyPI.
+
+### Repository
+
+- GitHub workflows: `actions/checkout` v5 to v7.0.1 and `actions/setup-python` v6 to v7.1.0.
+- hassfest pinned to `home-assistant/actions` master as of 2026-11-25, and the HACS action re-checked (its `main` is
+  unchanged since the last pin).
+- Gitea workflows run in `python:3.14-trixie` (Debian 13, the current stable) instead of `python:3.14-bookworm`.
+- Bug report form: the example versions now read Home Assistant 2026.11.3, TrueNAS 25.10.8 and TrueNAS Apps 1.4.1.
+
 ## 1.4.0 (2026-11-22)
 
 Security hardening, from a security review.
